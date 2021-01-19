@@ -2,6 +2,7 @@ package com.ffyytt.phonecall;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -17,6 +18,7 @@ import android.os.Environment;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.provider.MediaStore;
+import android.speech.RecognizerIntent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -40,8 +42,15 @@ import java.io.File;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 
-public class SpeechActivity extends AppCompatActivity implements View.OnTouchListener, SensorEventListener {
+import edu.cmu.pocketsphinx.Assets;
+import edu.cmu.pocketsphinx.Hypothesis;
+import edu.cmu.pocketsphinx.RecognitionListener;
+import edu.cmu.pocketsphinx.SpeechRecognizer;
+import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
+
+public class SpeechActivity extends AppCompatActivity implements View.OnTouchListener, SensorEventListener, RecognitionListener {
 
     LinearLayout linearLayout;
 
@@ -50,8 +59,20 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
     private SensorManager mSensorManager1;
     private Sensor mAccelerometer;
     private ShakeDetector mShakeDetector;
+    boolean isDrawing;
     Vibrator vibrator;
     GifView gifView;
+
+    SpeechRecognizer recognizer;
+    String KWS_SEARCH = "wakeup";
+    String FORECAST_SEARCH = "forecast";
+    String DIGITS_SEARCH = "digits";
+    String PHONE_SEARCH = "phones";
+    String MENU_SEARCH = "menu";
+    String KEYPHRASE = "hi";
+
+
+    private MakeCall makeCall = new MakeCall(this);
 
     AudioRecorder audioRecorder;
     String PhoneNumber = "";
@@ -99,6 +120,52 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
         });
 
         linearLayout.setOnTouchListener(this);
+        startListen();
+    }
+
+    private void switchSearch(String searchName) {
+        recognizer.stop();
+
+        // If we are not spotting, start listening with timeout (10000 ms or 10 seconds).
+        if (searchName.equals(KWS_SEARCH))
+            recognizer.startListening(searchName);
+        else
+            recognizer.startListening(searchName, 10000);
+
+        Toast.makeText(getApplicationContext(),"Ready!!!",Toast.LENGTH_SHORT).show();
+    }
+
+    void startListen()
+    {
+        try {
+            Assets assets = new Assets(SpeechActivity.this);
+            File assetDir = assets.syncAssets();
+            recognizer = SpeechRecognizerSetup.defaultSetup()
+                    .setAcousticModel(new File(assetDir, "en-us-ptm"))
+                    .setDictionary(new File(assetDir, "cmudict-en-us.dict"))
+                    .setKeywordThreshold(1e-5f)
+                    .setRawLogDir(assetDir) // To disable logging of raw audio comment out this call (takes a lot of space on the device)
+                    .getRecognizer();
+            recognizer.addListener(this);
+            recognizer.addKeyphraseSearch(KWS_SEARCH, KEYPHRASE);
+            File menuGrammar = new File(assetDir, "menu.gram");
+            recognizer.addGrammarSearch(MENU_SEARCH, menuGrammar);
+
+            // Create grammar-based search for digit recognition
+            File digitsGrammar = new File(assetDir, "digits.gram");
+            recognizer.addGrammarSearch(DIGITS_SEARCH, digitsGrammar);
+
+            // Create language model search
+            File languageModel = new File(assetDir, "weather.dmp");
+            recognizer.addNgramSearch(FORECAST_SEARCH, languageModel);
+
+            // Phonetic search
+            File phoneticModel = new File(assetDir, "en-phone.dmp");
+            recognizer.addAllphoneSearch(PHONE_SEARCH, phoneticModel);
+            switchSearch(KWS_SEARCH);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -119,13 +186,34 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
     public void onSensorChanged(SensorEvent event) {
         if(event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
             if (event.values[0] == 0) {
-                if (PhoneNumber.length() == 0) {
-                    vibrator(500);
-                    Intent intent = new Intent(this, MainActivity.class);
-                    startActivity(intent);
-                    overridePendingTransition(R.anim.fadein, R.anim.fadeout);
+                if (!isDrawing) {
+                    if (PhoneNumber.length() == 0) {
+                        vibrator(500);
+                        Intent intent = new Intent(this, MainActivity.class);
+                        startActivity(intent);
+                        overridePendingTransition(R.anim.fadein, R.anim.fadeout);
+                    }
+                    else
+                    {
+                        makeCall.Call(PhoneNumber,0);
+                    }
+                }
+                else
+                {
+                    exit();
                 }
             }
+        }
+    }
+
+    void exit()
+    {
+        Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.addCategory( Intent.CATEGORY_HOME );
+        intent.setFlags(0);
+        startActivity(intent);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            this.finishAndRemoveTask();
         }
     }
 
@@ -188,6 +276,7 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
         int action = event.getAction() & MotionEvent.ACTION_MASK;
 
         if (action == MotionEvent.ACTION_DOWN) {
+            isDrawing = true;
             gifView.setImageResource(R.drawable.listening);
             Toast.makeText(getApplicationContext(), "STARTED", Toast.LENGTH_SHORT).show();
             try {
@@ -202,6 +291,7 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
             return true;
         }
         else if (action == MotionEvent.ACTION_UP) {
+            isDrawing = false;
             audioRecorder.stop();
             gifView.setImageResource(R.drawable.speechwaiting);
 
@@ -210,7 +300,7 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
 
             Spectrogram spectrogram = new Spectrogram(w);
             Bitmap bSpect = testSpectrum(this, spectrogram.getNormalizedSpectrogramData());
-            Toast.makeText(getApplicationContext(), surfflannMatchingHomography.run(bSpect, bSpect)+"", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(getApplicationContext(), surfflannMatchingHomography.run(bSpect, bSpect)+"", Toast.LENGTH_SHORT).show();
 
             for (int i = 0; i < 10; i++)
             {
@@ -231,16 +321,17 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
             Wave w8 = new Wave(file.getAbsolutePath() + "/8.wav");
             Wave w9 = new Wave(file.getAbsolutePath() + "/9.wav");
 
-            float score[] = {w.getFingerprintSimilarity(w0).getScore(),
-                    w.getFingerprintSimilarity(w1).getScore(),
-                    w.getFingerprintSimilarity(w2).getScore(),
-                    w.getFingerprintSimilarity(w3).getScore(),
-                    w.getFingerprintSimilarity(w4).getScore(),
-                    w.getFingerprintSimilarity(w5).getScore(),
-                    w.getFingerprintSimilarity(w6).getScore(),
-                    w.getFingerprintSimilarity(w7).getScore(),
-                    w.getFingerprintSimilarity(w8).getScore(),
-                    w.getFingerprintSimilarity(w9).getScore()};
+            float score[] = {getScore(w,w0),
+                    getScore(w,w1),
+                    getScore(w,w2),
+                    getScore(w,w3),
+                    getScore(w,w4),
+                    getScore(w,w5),
+                    getScore(w,w6),
+                    getScore(w,w7),
+                    getScore(w,w8),
+                    getScore(w,w9),
+            };
             int maxIdx = 0;
             for (int i = 0; i < score.length; i++)
             {
@@ -249,9 +340,88 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
             }
 
             Toast.makeText(getApplicationContext(),"Result: "+maxIdx+", Score: "+score[maxIdx],Toast.LENGTH_SHORT).show();
-
+            PhoneNumber += maxIdx;
             return true;
         }
         return false;
+    }
+
+    float getSimilarHomo(Wave w1, Wave w2)
+    {
+        Spectrogram spectrogram1 = new Spectrogram(w1);
+        Spectrogram spectrogram2 = new Spectrogram(w2);
+        Bitmap bSpect1 = testSpectrum(this, spectrogram1.getNormalizedSpectrogramData());
+        Bitmap bSpect2 = testSpectrum(this, spectrogram2.getNormalizedSpectrogramData());
+        return surfflannMatchingHomography.run(bSpect1, bSpect2);
+    }
+    float getSimilarF(Wave w1, Wave w2)
+    {
+        return w1.getFingerprintSimilarity(w2).getScore();
+    }
+    float getScore(Wave w1, Wave w2)
+    {
+        return getSimilarHomo(w1, w2) + 100*getSimilarF(w1, w2);
+    }
+
+    @Override
+    public void onBeginningOfSpeech() {
+
+    }
+
+    @Override
+    public void onEndOfSpeech() {
+
+    }
+
+    @Override
+    public void onPartialResult(Hypothesis hypothesis) {
+        if (hypothesis == null)
+            return;
+        String text = hypothesis.getHypstr();
+        if (text.equals(KEYPHRASE))
+        {
+            recognizer.stop();
+            startSpeechToText(1);
+        }
+    }
+
+    private void startSpeechToText(int i) {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                getString(R.string.speech_prompt));
+        try {
+            startActivityForResult(intent, i);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(getApplicationContext(), getString(R.string.speech_not_supported), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (requestCode) {
+            case 1:
+                if (resultCode == -1 && data != null) {
+                    makeCall.Call(data.getStringArrayListExtra("android.speech.extra.RESULTS").get(0).replace(" ",""),0);
+                }
+                //switchSearch(KEYPHRASE);
+        }
+    }
+
+    @Override
+    public void onResult(Hypothesis hypothesis) {
+
+    }
+
+    @Override
+    public void onError(Exception e) {
+
+    }
+
+    @Override
+    public void onTimeout() {
+
     }
 }

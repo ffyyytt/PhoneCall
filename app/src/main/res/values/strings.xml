@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">PhoneCall</string>
+    <string name="speech_prompt" translatable="false">Listenning...</string>
+    <string name="speech_not_supported" translatable="false">Your Phone is not supported!</string>
 </resources>

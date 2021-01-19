@@ -61,13 +61,16 @@ repositories {
 }
 
 dependencies {
+    implementation project(':aars')
+    implementation project(':pocketsphinx-android-5prealpha-release')
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'com.google.android.material:material:1.2.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
+    implementation project(path: ':pocketsphinx-android-5prealpha-release')
     implementation project(path: ':openCVLibrary343')
     implementation files('libs\\musicg-1.4.2.0.jar')
     compile 'org.tensorflow:tensorflow-lite:+'
-    compile 'com.android.volley:volley:1.1.0'
+    implementation 'com.android.volley:volley:1.1.1'
     testImplementation 'junit:junit:4.13.1'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
