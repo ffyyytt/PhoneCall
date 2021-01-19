@@ -54,6 +54,14 @@ public class ModelServer extends Model {
             }
         };
         queue.add(stringRequest);
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            for (int i = 0; i < 10e9; i++)
+            {
+                i = i;
+            }
+        }
         return result[0];
     }
     public String getStringImage(Bitmap bmp) {
