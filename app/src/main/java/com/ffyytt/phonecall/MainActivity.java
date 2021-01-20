@@ -30,6 +30,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.opencv.android.OpenCVLoader;
@@ -65,6 +66,7 @@ public class MainActivity extends AppCompatActivity implements  View.OnTouchList
     private float mLastX;
     private float mLastY;
 
+    TextView tv;
     String PhoneNumber = "";
     private MakeCall makeCall = new MakeCall(this);
     private boolean isDrawing = false;
@@ -93,6 +95,7 @@ public class MainActivity extends AppCompatActivity implements  View.OnTouchList
         this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_main);
 
+        tv = (TextView)findViewById(R.id.textView);
         gifView = (GifView) findViewById(R.id.GifV);
         gifView.setImageResource(R.drawable.waiting);
 
@@ -130,6 +133,7 @@ public class MainActivity extends AppCompatActivity implements  View.OnTouchList
                 if (PhoneNumber.length() > 0)
                 {
                     PhoneNumber = PhoneNumber.substring(0, PhoneNumber.length()-1);
+                    tv.setText(PhoneNumber);
                     Toast.makeText(getApplicationContext(), PhoneNumber, Toast.LENGTH_SHORT).show();
                     playResource(R.raw.deleted);
                 }
@@ -395,6 +399,7 @@ public class MainActivity extends AppCompatActivity implements  View.OnTouchList
         }
 
         PhoneNumber += Result;
+        tv.setText(PhoneNumber);
         switch (Result)
         {
             case "0":

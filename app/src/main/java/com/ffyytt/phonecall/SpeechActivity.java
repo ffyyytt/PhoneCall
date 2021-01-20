@@ -22,6 +22,7 @@ import android.speech.RecognizerIntent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.musicg.fingerprint.FingerprintSimilarity;
@@ -76,6 +77,7 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
 
     AudioRecorder audioRecorder;
     String PhoneNumber = "";
+    TextView tv;
     SURFFLANNMatchingHomography surfflannMatchingHomography = new SURFFLANNMatchingHomography();
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,6 +90,7 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
             e.printStackTrace();
         }
 
+        tv = (TextView)findViewById(R.id.textView2);
         gifView = (GifView)findViewById(R.id.GV);
         gifView.setImageResource(R.drawable.speechwaiting);
 
@@ -109,6 +112,7 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
                 if (PhoneNumber.length() > 0)
                 {
                     PhoneNumber = PhoneNumber.substring(0, PhoneNumber.length()-1);
+                    tv.setText(PhoneNumber);
                     Toast.makeText(getApplicationContext(), PhoneNumber, Toast.LENGTH_SHORT).show();
                     playResource(R.raw.deleted);
                 }
@@ -196,6 +200,7 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
                     else
                     {
                         makeCall.Call(PhoneNumber,0);
+                        recognizer.stop();
                     }
                 }
                 else
@@ -216,6 +221,12 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
             this.finishAndRemoveTask();
         }
     }
+
+    private void vibrator(long[] pattern)
+    {
+        vibrator.vibrate(pattern,-1);
+    }
+
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -341,6 +352,64 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
 
             Toast.makeText(getApplicationContext(),"Result: "+maxIdx+", Score: "+score[maxIdx],Toast.LENGTH_SHORT).show();
             PhoneNumber += maxIdx;
+
+            String Result = maxIdx+"";
+
+            switch (Result)
+            {
+                case "0":
+                    playResource(R.raw.zero);
+                    gifView.setImageResource(R.drawable.zerogif);
+                    vibrator(0);
+                    break;
+                case "1":
+                    playResource(R.raw.one);
+                    gifView.setImageResource(R.drawable.onegif);
+                    vibrator(100);
+                    break;
+                case "2":
+                    playResource(R.raw.two);
+                    gifView.setImageResource(R.drawable.twogif);
+                    vibrator(new long[]{0, 100, 100, 100});
+                    break;
+                case "3":
+                    playResource(R.raw.three);
+                    gifView.setImageResource(R.drawable.threegif);
+                    vibrator(new long[]{0, 100, 100, 100, 100, 100});
+                    break;
+                case "4":
+                    playResource(R.raw.four);
+                    gifView.setImageResource(R.drawable.fourgif);
+                    vibrator(new long[]{0, 100, 100, 100, 100, 100, 100, 100});
+                    break;
+                case "5":
+                    playResource(R.raw.five);
+                    gifView.setImageResource(R.drawable.fivegif);
+                    vibrator(new long[]{0, 100, 500, 100});
+                    break;
+                case "6":
+                    playResource(R.raw.six);
+                    gifView.setImageResource(R.drawable.sixgif);
+                    vibrator(new long[]{0, 500, 100, 500});
+                    break;
+                case "7":
+                    playResource(R.raw.seven);
+                    gifView.setImageResource(R.drawable.sevengif);
+                    vibrator(new long[]{0, 500, 100, 500, 100, 500});
+                    break;
+                case "8":
+                    playResource(R.raw.eight);
+                    gifView.setImageResource(R.drawable.eightgif);
+                    vibrator(new long[]{0, 500, 100, 500, 100, 500, 100, 500});
+                    break;
+                case "9":
+                    playResource(R.raw.nine);
+                    gifView.setImageResource(R.drawable.ninegif);
+                    vibrator(new long[]{0, 100, 500, 100, 500, 100});
+                    break;
+            }
+
+            tv.setText(PhoneNumber);
             return true;
         }
         return false;
@@ -404,7 +473,7 @@ public class SpeechActivity extends AppCompatActivity implements View.OnTouchLis
         switch (requestCode) {
             case 1:
                 if (resultCode == -1 && data != null) {
-                    makeCall.Call(data.getStringArrayListExtra("android.speech.extra.RESULTS").get(0).replace(" ",""),0);
+                    makeCall.Call(PhoneNumber + data.getStringArrayListExtra("android.speech.extra.RESULTS").get(0).replace(" ",""),0);
                 }
                 //switchSearch(KEYPHRASE);
         }
