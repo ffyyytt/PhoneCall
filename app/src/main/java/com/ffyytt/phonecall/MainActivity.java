@@ -385,8 +385,8 @@ public class MainActivity extends AppCompatActivity implements  View.OnTouchList
                 openCVDNN.loadweight("file:///android_assets/SVM.onnx", "file:///android_asset/labels.txt");
                 break;
             case 7: //Caffe Model
-                //openCVDNN.loadweight("file://assets/model.caffemodel", "file://assets/labels.txt");
-                //break;
+                openCVDNN.loadweight("file://assets/model.caffemodel", "file://assets/labels.txt");
+                break;
             default:
                 Result = mnistClassification.predict(drawView.getmOffscreenBitmap());
         }
